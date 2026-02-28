@@ -1,0 +1,109 @@
+# ============================================================================
+# TOPICS OF INTEREST
+# ============================================================================
+# This file defines the topics of interest for bibliographic source curation.
+# These topics guide which literature to collect and how to contextualize it.
+#
+# Purpose: Help agents identify relevant content and explain
+# why particular sources matter to the knowledge base.
+#
+# IMPORTANT: Each topic includes positive and negative signals.
+# - positive_signals: Themes, framings, and example titles that MATCH this topic.
+#   Papers that sound like these are interesting.
+# - negative_signals: Themes, framings, and example titles that do NOT match
+#   even if they share keywords. Papers that sound like these should be excluded.
+# ============================================================================
+
+topics:
+  - id: ai-identity-digital-self
+    name: "AI, Identity, and the Digital Self"
+    description: >
+      How AI agents represent, extend, or transform human identity. Portable
+      professional identity, agent-as-self, digital personhood, ownership of
+      AI representations, and philosophical questions about selfhood in an
+      age of externalized cognition.
+    keywords:
+      - digital-identity
+      - digital-self
+      - ai-personhood
+      - agent-identity
+      - self-representation
+      - portable-identity
+      - externalized-cognition
+      - personal-ai
+      - identity-management
+    positive_signals:
+      - "Explores what it means to have an AI agent represent you"
+      - "Philosophical examination of AI personhood or agency"
+      - "Digital identity portability across employers or platforms"
+      - "Ownership and authenticity of AI-generated self-representation"
+      - "Example: 'A Pragmatic View of AI Personhood'"
+      - "Example: 'Who Owns Your AI Agent? Identity in the Agentic Era'"
+    negative_signals:
+      - "Benchmarking agent performance on tasks"
+      - "New neural architecture for agent reasoning"
+      - "Agent simulation frameworks or testbeds"
+      - "Example: 'AgentBench: Evaluating LLMs as Agents'"
+
+  - id: ai-human-communication
+    name: "AI Impact on Human Communication and Relationships"
+    description: >
+      How AI agents mediate, transform, or replace human-to-human communication.
+      Agent-to-agent interaction as proxy for human conversation, AI in family
+      and therapeutic contexts, social intelligence of agents, communication
+      barriers, and the risk of AI substituting for genuine human connection.
+    keywords:
+      - human-ai-interaction
+      - communication-barriers
+      - social-intelligence
+      - agent-to-agent
+      - ai-mediation
+      - ai-therapy
+      - ai-companionship
+      - family-communication
+      - emotional-ai
+      - empathy
+    positive_signals:
+      - "Studies how AI changes the way humans communicate with each other"
+      - "AI agents as intermediaries in human relationships"
+      - "Social skills or emotional intelligence of AI agents"
+      - "Risks of AI replacing human conversation or connection"
+      - "AI in mental health, therapy, or emotional support contexts"
+      - "Example: 'SocialVeil: Probing Social Intelligence of Language Agents under Communication Barriers'"
+      - "Example: 'When Agents Talk: Does AI Mediation Help or Hurt Human Connection?'"
+    negative_signals:
+      - "Multi-agent communication protocols for task coordination"
+      - "Agent negotiation benchmarks"
+      - "Dialogue systems evaluated on task completion metrics"
+      - "Example: 'Efficient Multi-Agent Communication via Learned Protocols'"
+
+  - id: ai-cognition-psychology
+    name: "AI Impact on Human Cognition and Psychology"
+    description: >
+      How AI tools affect human thinking, learning, decision-making, and
+      mental models. Cognitive offloading, AI fatigue, deskilling risks,
+      impostor syndrome in AI-augmented work, and the psychology of
+      human-AI collaboration.
+    keywords:
+      - ai-cognition
+      - cognitive-offloading
+      - ai-fatigue
+      - deskilling
+      - decision-making
+      - mental-models
+      - human-ai-collaboration
+      - ai-psychology
+      - impostor-syndrome
+      - cognitive-load
+    positive_signals:
+      - "Studies how AI tools change the way people think or learn"
+      - "Cognitive or psychological effects of working with AI"
+      - "Deskilling or over-reliance on AI assistance"
+      - "AI fatigue, burnout, or the human toll of rapid AI advancement"
+      - "Example: 'AI Fatigue: Reflections on the Human Side of AI's Rapid Advancement'"
+      - "Example: 'How AI Impacts Skill Formation' (the learning/cognition angle)"
+    negative_signals:
+      - "Cognitive architecture for AI systems (not about humans)"
+      - "LLM reasoning benchmarks or chain-of-thought improvements"
+      - "Attention mechanisms in neural networks"
+      - "Example: 'Improving LLM Reasoning with Self-Consistency'"
