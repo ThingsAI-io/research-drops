@@ -105,9 +105,6 @@ jobs:
           # Append the agent instructions (strip frontmatter from the .md file)
           cat .github/workflows/daily-research-monitor.prompt.md >> /tmp/research-monitor/prompt.txt
 
-          # Replace the safe-tools reference with JSON output instruction
-          sed -i 's/create a GitHub discussion using your available safe tools/write your output to \/tmp\/research-monitor\/output.json (see system instructions above)/g' /tmp/research-monitor/prompt.txt
-
           echo "✅ Prompt built ($(wc -l < /tmp/research-monitor/prompt.txt) lines)"
 
       # ── 4. Run the agent ─────────────────────────────────────────

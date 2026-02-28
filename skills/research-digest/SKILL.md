@@ -96,11 +96,4 @@ Classify each entry into exactly one type (pick whichever dominates):
 
 ## Output
 
-Write the final Markdown to `/tmp/research-monitor/output.json`:
-
-```json
-{
-  "title": "Weekly AI Research Digest - 2026-02-07",
-  "body": "<processed markdown>"
-}
-```
+Return the fully expanded Markdown string. This skill produces **Markdown only**.
