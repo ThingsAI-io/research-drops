@@ -1,5 +1,5 @@
 ---
-name: feed-filter
+name: research-filter
 description: Filter feed entries by relevance to topics of interest using two-phase judgment (titles then abstracts) and annotate with idea connections. Use when curating content against defined interests.
 ---
 
@@ -11,7 +11,7 @@ Filter feed entries through two sequential phases — a broad title scan followe
 
 - Filtering downloaded feed entries against topics of interest
 - Curating a feed batch before aggregation or publication
-- Preparing a relevance-scored shortlist for the feed-aggregator skill
+- Preparing a relevance-scored shortlist for the research-digest skill
 
 ## Required Inputs
 
@@ -164,11 +164,11 @@ Most matched topics: {top 3}
 ## Integration
 
 **Upstream**: `download_feed.py` produces the `titles.jsonl` and per-entry `.md` files.
-**Downstream**: feed-aggregator skill consumes the filtered, tiered, annotated entries.
+**Downstream**: research-digest skill consumes the filtered, tiered, annotated entries.
 
 ```
-download_feed.py → feed-filter → feed-aggregator
-(fetch + JSONL)    (2-phase filter) (format digest)
+fetch.py → research-filter → research-digest
+(fetch + JSONL)  (2-phase filter)  (format digest)
 ```
 
 ## Operational Principles

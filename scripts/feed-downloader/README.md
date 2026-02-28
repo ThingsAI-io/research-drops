@@ -36,7 +36,7 @@ pip install requests pyyaml
 ```bash
 python download_feed.py \
   --url "http://rss.arxiv.org/rss/cs.AI" \
-  --output /tmp/rss-monitor/feeds/arxiv-ai \
+  --output /tmp/research-monitor/feeds/arxiv-ai \
   --cutoff 24 \
   --feed-id arxiv-ai \
   --feed-name "arXiv Computer Science - Artificial Intelligence"
@@ -180,7 +180,7 @@ This script is called by `.github/workflows/daily-research-monitor.yml`:
 ```yaml
 - name: Download RSS feeds
   run: |
-    mkdir -p /tmp/rss-monitor/feeds
+    mkdir -p /tmp/research-monitor/feeds
     
     python3 -c "
     import yaml, subprocess, sys, json
@@ -192,7 +192,7 @@ This script is called by `.github/workflows/daily-research-monitor.yml`:
     
     for feed in feeds:
         print(f\"📡 Downloading feed '{feed['id']}': {feed['url']}\")
-        output_dir = f\"/tmp/rss-monitor/feeds/{feed['id']}\"
+        output_dir = f\"/tmp/research-monitor/feeds/{feed['id']}\"
         
         result = subprocess.run([
             sys.executable, 'system/src/feed-downloader/download_feed.py',
@@ -214,7 +214,7 @@ This script is called by `.github/workflows/daily-research-monitor.yml`:
     "
 ```
 
-The workflow then points the Copilot CLI agent to `/tmp/rss-monitor/feeds/` to read the pre-structured content.
+The workflow then points the Copilot CLI agent to `/tmp/research-monitor/feeds/` to read the pre-structured content.
 
 ## Design Decisions
 

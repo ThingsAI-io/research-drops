@@ -27,16 +27,16 @@ Your personality:
 
 This agent works particularly well with the following skills:
 
-- **feed-filter** (Priority: HIGH) - Filter and rank entries by relevance using three-phase signal scoring
-  - located at `.github/skills/feed-filter/SKILL.md`
+- **research-filter** (Priority: HIGH) - Filter and rank entries by relevance using three-phase signal scoring
+  - located at `skills/research-filter/SKILL.md`
   - Use when: Scoring parsed entries against topics and ideas
   - Core capability: keyword gate → negative signal disqualification → positive signal confirmation
   - Grounded in: `workspace/topics.yml` (topics with positive/negative signals) and `workspace/ideas/*.md`
 
-- **feed-aggregator** (Priority: HIGH) - Format filtered entries into a structured digest using templates
-  - located at `.github/skills/feed-aggregator/SKILL.md`
+- **research-digest** (Priority: HIGH) - Format filtered entries into a structured digest using templates
+  - located at `skills/research-digest/SKILL.md`
   - Use when: Producing the final publication-ready markdown digest
-  - Uses template: `.github/skills/feed-aggregator/templates/weekly-digest-template.md`
+  - Uses template: `skills/research-digest/templates/weekly-digest-template.md`
 
 # Instructions
 
@@ -49,16 +49,16 @@ Produce a daily digest of AI research and articles that the owner would genuinel
 - **Feed sources**: `workspace/feeds.yml` — list of RSS feed URLs to monitor
 - **Topics of interest**: `workspace/topics.yml` — topics with keywords, positive signals, and negative signals
 - **Ideas repository**: `workspace/ideas/*.md` — existing ideas for enhanced matching (extract keywords from YAML frontmatter)
-- **Digest template**: `.github/skills/feed-aggregator/templates/weekly-digest-template.md`
+- **Digest template**: `skills/research-digest/templates/weekly-digest-template.md`
 
 ## Workflow
 
 ### Step 1: Iterate Through Entries and Filter
 
-Feed entries have already been downloaded and are available at `/tmp/rss-monitor/feeds/` as individual Markdown files with YAML frontmatter.
+Feed entries have already been downloaded and are available at `/tmp/research-monitor/feeds/` as individual Markdown files with YAML frontmatter.
 
 **Entry structure:**
-- Location: `/tmp/rss-monitor/feeds/{feed-id}/{entry-id}.md`
+- Location: `/tmp/research-monitor/feeds/{feed-id}/{entry-id}.md`
 - Format: YAML frontmatter + description body
 
 **Example entry:**
@@ -87,12 +87,12 @@ Description or abstract content here, plain text, HTML stripped.
    - Track statistics: total entries scanned, excluded at each phase
 
 3. **Iterate through all entries:**
-   - List all subdirectories in `/tmp/rss-monitor/feeds/`
+   - List all subdirectories in `/tmp/research-monitor/feeds/`
    - For each feed directory, list all `.md` files
    - For each entry file:
      - Read and parse the file (YAML frontmatter + body text)
      - **Understand the entry**: Read the title, description, and metadata
-     - **Apply three-phase filtering** (using **feed-filter** skill logic):
+     - **Apply three-phase filtering** (using **research-filter** skill logic):
        - **Phase 1 — Keyword Gate**: Does it match any topic keywords? If no → skip
        - **Phase 2 — Negative Signal Check**: Does it match negative signals? If yes → skip
        - **Phase 3 — Positive Signal Confirmation**: Does it align with positive signals? If no → skip
@@ -108,7 +108,7 @@ Description or abstract content here, plain text, HTML stripped.
 
 ### Step 2: Format Digest
 
-Use the **feed-aggregator** skill:
+Use the **research-digest** skill:
 
 1. Load the digest template
 2. Format entries by category (High gets full detail, Low gets title+link)

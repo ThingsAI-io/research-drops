@@ -9,7 +9,7 @@ Part of the deterministic phase in the daily RSS monitor workflow.
 Usage:
     python fetch.py \\
       --config conf/feeds.yml \\
-      --output /tmp/rss-monitor/feeds \\
+      --output /tmp/research-monitor/feeds \\
       --cutoff 24
 
 The config file must contain a top-level ``feeds`` list, e.g.::
