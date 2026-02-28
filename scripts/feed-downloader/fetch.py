@@ -63,24 +63,14 @@ def sanitize_filename(text: str) -> str:
 
 def generate_entry_id(guid: Optional[str], link: str) -> str:
     """
-    Generate a unique entry ID from guid or link.
-    
-    Args:
-        guid: The entry's guid or id field (if present)
-        link: The entry's link URL
-        
-    Returns:
-        Sanitized entry ID suitable for use as a filename
+    Generate a short, unique entry ID from guid or link.
+
+    Uses a truncated SHA-256 hash (12 hex chars) of the best available
+    identifier.  Keeps filenames short and collision-resistant regardless
+    of how long the source guid/URL is.
     """
-    if guid:
-        # Use guid if available
-        entry_id = sanitize_filename(guid)
-    else:
-        # Fallback: SHA-256 hash of link (truncated to 12 chars)
-        hash_obj = hashlib.sha256(link.encode('utf-8'))
-        entry_id = hash_obj.hexdigest()[:12]
-    
-    return entry_id
+    source = guid if guid else link
+    return hashlib.sha256(source.encode('utf-8')).hexdigest()[:12]
 
 
 def strip_html_tags(text: str) -> str:
