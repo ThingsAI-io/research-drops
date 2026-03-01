@@ -5,9 +5,6 @@
 #   COPILOT_GITHUB_TOKEN  — Classic PAT with public_repo + copilot scopes
 #                           (created per gh-aw requirements)
 #
-# Optional repository variables:
-#   GH_AW_MODEL_AGENT_COPILOT — model override (e.g. "gpt-4.1" or "claude-sonnet-4")
-
 name: "Daily Research Monitor"
 
 on:
@@ -15,6 +12,11 @@ on:
     # NOTE: ArXiv only updates during weekdays, so we can skip weekends.
     - cron: "0 14 * * 1-5"   # Weekdays at 6 AM PST (UTC-8)
   workflow_dispatch:
+    inputs:
+      model:
+        description: "Copilot model to use"
+        type: string
+        default: "claude-sonnet-4.6"
 
 permissions:
   contents: read
@@ -95,8 +97,6 @@ jobs:
           The repository is checked out at the current working directory.
 
           ## Key context
-          - Repository: $GITHUB_REPOSITORY
-          - Run ID: $GITHUB_RUN_ID
           - Today's date: $(date +%Y-%m-%d)
           </system>
 
@@ -124,7 +124,7 @@ jobs:
             --add-dir /tmp/research-monitor \
             --allow-all-tools \
             --allow-all-paths \
-            ${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            --model "${{ inputs.model || 'claude-sonnet-4.6' }}" \
             --prompt "$(cat /tmp/research-monitor/prompt.txt)" \
             2>&1 | tee /tmp/research-monitor/agent-output.log
 
@@ -151,14 +151,18 @@ jobs:
 
       # ── 6. Publish output as GitHub Discussion ───────────────────
       #    Reads the agent's JSON output and creates a discussion.
-      #    This step runs with GITHUB_TOKEN (discussions:write) — the
-      #    agent never touches the GitHub API directly.
+      #    Requires DISCUSSIONS_WRITE_TOKEN secret. If not set, skips.
       #
       - name: Create discussion from agent output
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.GH_DISCUSSIONS_TOKEN }}
+          GH_TOKEN: ${{ secrets.DISCUSSIONS_WRITE_TOKEN }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "⏭️ DISCUSSIONS_WRITE_TOKEN not set — skipping discussion creation"
+            exit 0
+          fi
+
           OUTPUT_FILE="/tmp/research-monitor/output.json"
 
           if [ ! -f "$OUTPUT_FILE" ]; then
