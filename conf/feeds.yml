@@ -1,0 +1,35 @@
+# ============================================================================
+# RSS FEED SOURCES
+# ============================================================================
+# This file defines RSS feed sources to monitor for content curation.
+# Used by the daily-research-monitor workflow.
+# ============================================================================
+
+feeds:
+  - id: arxiv-ai
+    name: "arXiv Computer Science - Artificial Intelligence"
+    url: "http://rss.arxiv.org/rss/cs.AI"
+    description: "Latest AI research papers from arXiv"
+    format: rss
+    update_frequency: daily
+    
+  - id: arxiv-cy
+    name: "arXiv Computer Science - Computers and Society"
+    url: "http://rss.arxiv.org/rss/cs.CY"
+    description: "Papers on the impact of computers on society, including policy, ethics, and social implications"
+    format: rss
+    update_frequency: daily
+
+  - id: arxiv-hc
+    name: "arXiv Computer Science - Human-Computer Interaction"
+    url: "http://rss.arxiv.org/rss/cs.HC"
+    description: "Papers on HCI, user experience, and human-centered computing"
+    format: rss
+    update_frequency: daily
+
+  - id: microsoft-research
+    name: "Microsoft Research"
+    url: "https://www.microsoft.com/en-us/research/feed/"
+    description: "Latest posts from Microsoft Research"
+    format: rss
+    update_frequency: daily

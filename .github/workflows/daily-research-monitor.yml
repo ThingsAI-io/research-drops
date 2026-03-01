@@ -1,0 +1,215 @@
+# Daily RSS Monitor — standalone Copilot CLI workflow
+# No gh-aw dependency. Runs Copilot CLI directly as a coding agent.
+#
+# Required secrets:
+#   COPILOT_GITHUB_TOKEN  — Classic PAT with public_repo + copilot scopes
+#                           (created per gh-aw requirements)
+#
+name: "Daily Research Monitor"
+
+on:
+  schedule:
+    # NOTE: ArXiv only updates during weekdays, so we can skip weekends.
+    - cron: "0 14 * * 1-5"   # Weekdays at 6 AM PST (UTC-8)
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Copilot model to use"
+        type: string
+        default: "claude-sonnet-4.6"
+
+permissions:
+  contents: read
+  discussions: write
+
+concurrency:
+  group: "daily-research-monitor"
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # ── 2. Set up Python ─────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install feed-downloader dependencies
+        run: pip install -r scripts/feed-downloader/requirements.txt
+
+      # ── 2.5. Download RSS feeds ──────────────────────────────────
+      #    Deterministic phase: fetch feeds, parse entries, write
+      #    structured Markdown files to /tmp/research-monitor/feeds/
+      - name: Download RSS feeds
+        run: |
+          python3 scripts/feed-downloader/fetch.py \
+            --config conf/feeds.yml \
+            --output /tmp/research-monitor/feeds \
+            --cutoff 24
+
+      # ── 2.75. Install Copilot CLI ────────────────────────────────
+      - name: Install Copilot CLI
+        run: curl -fsSL https://gh.io/copilot-install | sudo bash
+
+      # ── 3. Build prompt ──────────────────────────────────────────
+      #    Strips YAML frontmatter from the agent instructions file
+      #    and prepends a system preamble with context.
+      - name: Build prompt
+        run: |
+          mkdir -p /tmp/research-monitor
+
+          # System preamble — gives the agent runtime context
+          cat > /tmp/research-monitor/prompt.txt << 'PREAMBLE'
+          <system>
+          You are running as a standalone Copilot CLI agent inside a GitHub Actions workflow.
+
+          ## Available tools
+          - **bash**: You can run any shell command (curl, grep, sed, awk, jq, etc.)
+          - **file tools**: You can read and write files in the workspace.
+
+          ## Publishing output
+          You do NOT have access to the GitHub API or `gh` CLI.
+          Instead, write your output to a JSON file at `/tmp/research-monitor/output.json`.
+
+          The JSON file must have this structure:
+          ```json
+          {
+            "title": "Your concise title (without [ai] prefix — it will be added automatically)",
+            "body": "Your full report in Markdown format"
+          }
+          ```
+
+          Rules:
+          - Write EXACTLY ONE JSON object to `/tmp/research-monitor/output.json`.
+          - The `body` field should contain the full Markdown report. Do NOT repeat the title as a heading.
+          - If there is nothing interesting to report, write: `{"skip": true, "reason": "No relevant content found"}`
+          - Do NOT attempt to create discussions, issues, or PRs yourself.
+
+          ## Workspace
+          The repository is checked out at the current working directory.
+
+          ## Key context
+          - Today's date: $(date +%Y-%m-%d)
+          </system>
+
+          PREAMBLE
+
+          # Append the agent instructions (strip frontmatter from the .md file)
+          cat .github/workflows/daily-research-monitor.prompt.md >> /tmp/research-monitor/prompt.txt
+
+          echo "✅ Prompt built ($(wc -l < /tmp/research-monitor/prompt.txt) lines)"
+
+      # ── 4. Run the agent ─────────────────────────────────────────
+      #    The agent reads pre-downloaded feed entries from
+      #    /tmp/research-monitor/feeds/, filters content, and writes output.json.
+      #    It has NO network access to RSS feeds (pre-downloaded).
+      #
+      - name: Run Copilot CLI agent
+        timeout-minutes: 20
+        env:
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+        run: |
+          copilot \
+            --add-dir "$GITHUB_WORKSPACE" \
+            --add-dir /tmp/research-monitor \
+            --allow-all-tools \
+            --allow-all-paths \
+            --model "${{ inputs.model || 'claude-sonnet-4.6' }}" \
+            --prompt "$(cat /tmp/research-monitor/prompt.txt)" \
+            2>&1 | tee /tmp/research-monitor/agent-output.log
+
+      # ── 5. Write output to job summary ──────────────────────────
+      - name: Write output to job summary
+        if: success()
+        run: |
+          OUTPUT_FILE="/tmp/research-monitor/output.json"
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "⚠️ No output.json produced" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if jq -e '.skip // false' "$OUTPUT_FILE" > /dev/null 2>&1; then
+            echo "⏭️ Skipped: $(jq -r '.reason // "No reason"' "$OUTPUT_FILE")" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          TITLE=$(jq -r '.title // empty' "$OUTPUT_FILE")
+          BODY=$(jq -r '.body // empty' "$OUTPUT_FILE")
+          {
+            echo "## 📢 [ai] $TITLE"
+            echo ""
+            echo "$BODY"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 6. Publish output as GitHub Discussion ───────────────────
+      #    Reads the agent's JSON output and creates a discussion.
+      #    Requires DISCUSSIONS_WRITE_TOKEN secret. If not set, skips.
+      #
+      - name: Create discussion from agent output
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.DISCUSSIONS_WRITE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "⏭️ DISCUSSIONS_WRITE_TOKEN not set — skipping discussion creation"
+            exit 0
+          fi
+
+          OUTPUT_FILE="/tmp/research-monitor/output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "⚠️ No output.json found — agent produced no output"
+            exit 0
+          fi
+
+          # Check if agent decided to skip
+          if jq -e '.skip // false' "$OUTPUT_FILE" > /dev/null 2>&1; then
+            REASON=$(jq -r '.reason // "No reason given"' "$OUTPUT_FILE")
+            echo "⏭️ Agent skipped: $REASON"
+            exit 0
+          fi
+
+          # Validate required fields
+          TITLE=$(jq -r '.title // empty' "$OUTPUT_FILE")
+          BODY=$(jq -r '.body // empty' "$OUTPUT_FILE")
+
+          if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
+            echo "❌ output.json missing title or body"
+            jq . "$OUTPUT_FILE"
+            exit 1
+          fi
+
+          echo "📢 Creating discussion: [ai] $TITLE"
+          gh api graphql \
+            -f query='
+              mutation($repoId: ID!, $catId: ID!, $title: String!, $body: String!) {
+                createDiscussion(input: {
+                  repositoryId: $repoId
+                  categoryId: $catId
+                  title: $title
+                  body: $body
+                }) { discussion { url } }
+              }' \
+            -f repoId="$(gh api repos/$GITHUB_REPOSITORY --jq .node_id)" \
+            -f catId="$(gh api graphql -f query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ discussionCategory(slug:"general"){ id } } }' -f owner="${GITHUB_REPOSITORY%%/*}" -f repo="${GITHUB_REPOSITORY##*/}" --jq '.data.repository.discussionCategory.id')" \
+            -f title="[ai] $TITLE" \
+            -f body="$BODY"
+
+          echo "✅ Discussion created"
+
+      # ── 7. Upload logs ───────────────────────────────────────────
+      - name: Upload agent logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-monitor-logs-${{ github.run_id }}
+          path: /tmp/research-monitor/
+          retention-days: 7
