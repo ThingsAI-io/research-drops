@@ -2,6 +2,8 @@
 
 Automated daily research digest — fetches papers from RSS feeds, filters out based on topics of interest.
 
+> Jump to an example output [in GitHub Discussions](https://github.com/ThingsAI-io/research-drops/discussions/2) or [in GitHub Actions](https://github.com/ThingsAI-io/research-drops/actions/runs/22578022265).
+
 A GitHub Actions workflow runs every weekday: a Python script pulls entries from arXiv and Microsoft Research, then a [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) agent applies two skills — **research-filter** and **research-digest** — to separate signal from noise and publish a digest as a GitHub Discussion.
 
 ---
