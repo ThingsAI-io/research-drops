@@ -10,7 +10,7 @@ name: "Daily Research Monitor"
 on:
   schedule:
     # NOTE: ArXiv only updates during weekdays, so we can skip weekends.
-    - cron: "0 14 * * 1-5"   # Weekdays at 6 AM PST (UTC-8)
+    # - cron: "0 14 * * 1-5"   # Weekdays at 6 AM PST (UTC-8)
   workflow_dispatch:
     inputs:
       model:
