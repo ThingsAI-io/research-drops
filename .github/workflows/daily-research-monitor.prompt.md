@@ -38,7 +38,9 @@ You have access to ONLY these paths:
 | Path | Purpose | Access |
 |------|---------|--------|
 | `/tmp/research-monitor/feeds/` | Pre-downloaded feed entries | READ |
-| `/tmp/research-monitor/output.json` | Your output file | WRITE |
+| `/tmp/research-monitor/title.txt` | Output: single-line title | WRITE |
+| `/tmp/research-monitor/body.md` | Output: full Markdown report | WRITE |
+| `/tmp/research-monitor/skip.json` | Output: skip instruction | WRITE |
 | `skills/research-filter/SKILL.md` | Filtering methodology | READ |
 | `skills/research-digest/SKILL.md` | Digest formatting methodology | READ |
 | `skills/research-digest/templates/` | Digest templates | READ |
@@ -80,23 +82,20 @@ The skill returns a finished Markdown string.
 
 ### Step 3 — Write output
 
-Wrap the Markdown from Step 2 into JSON and write it to `/tmp/research-monitor/output.json`:
+Write the Markdown digest from Step 2 to `/tmp/research-monitor/body.md`
+and a single-line title to `/tmp/research-monitor/title.txt`:
 
-```json
-{
-  "title": "Daily AI Research Digest — YYYY-MM-DD",
-  "body": "Full markdown digest here"
-}
-```
+- **`/tmp/research-monitor/title.txt`** — a concise title like `Daily AI Research Digest — YYYY-MM-DD`
+- **`/tmp/research-monitor/body.md`** — full Markdown report content
 
-- Write EXACTLY ONE JSON object. The `body` field contains the full Markdown report.
-- Do NOT repeat the title as a heading inside `body`.
+Rules:
+- Do NOT repeat the title as a heading inside `body.md`.
 - **Always write output**, even when no entries survive filtering. If nothing
-  passes, set `body` to a short report: total entries scanned, how many excluded
+  passes, write a short report: total entries scanned, how many excluded
   at each phase, a one-line summary of what dominated today's feeds, and
   optionally the closest near-miss.
-- If truly nothing was fetched (empty feeds directory), write:
-  `{"skip": true, "reason": "No feed entries available"}`
+- If truly nothing was fetched (empty feeds directory), write
+  `/tmp/research-monitor/skip.json` with content `{"skip": true, "reason": "No feed entries available"}`
 
 ## Guardrails
 
