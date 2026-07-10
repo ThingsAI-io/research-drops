@@ -12,7 +12,7 @@ on:
       model:
         description: "opencode model to use (provider/model-id format)"
         type: string
-        default: "mistral/mistral-large-latest"
+        default: "mistral/mistral-small-latest"
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ concurrency:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -109,12 +109,12 @@ jobs:
       #    It has NO network access to RSS feeds (pre-downloaded).
       #
       - name: Run opencode agent
-        timeout-minutes: 20
+        timeout-minutes: 30
         env:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
           npx opencode run \
-            --model "${{ inputs.model || 'mistral-large-latest' }}" \
+            --model "${{ inputs.model || 'mistral/mistral-small-latest' }}" \
             --auto \
             --dir "$GITHUB_WORKSPACE" \
             "$(cat /tmp/research-monitor/prompt.txt)" \
