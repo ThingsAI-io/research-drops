@@ -1,9 +1,8 @@
-# Daily RSS Monitor — standalone Copilot CLI workflow
-# No gh-aw dependency. Runs Copilot CLI directly as a coding agent.
+# Daily RSS Monitor — standalone opencode workflow
+# Runs opencode directly as a coding agent.
 #
 # Required secrets:
-#   COPILOT_GITHUB_TOKEN  — Classic PAT with public_repo + copilot scopes
-#                           (created per gh-aw requirements)
+#   MISTRAL_API_KEY  — Mistral AI API key (https://console.mistral.ai/api-keys)
 #
 name: "Daily Research Monitor"
 
@@ -14,9 +13,9 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Copilot model to use"
+        description: "opencode model to use (provider/model-id format)"
         type: string
-        default: "claude-sonnet-4.6"
+        default: "mistral/mistral-large-latest"
 
 permissions:
   contents: read
@@ -55,9 +54,10 @@ jobs:
             --output /tmp/research-monitor/feeds \
             --cutoff 24
 
-      # ── 2.75. Install Copilot CLI ────────────────────────────────
-      - name: Install Copilot CLI
-        run: curl -fsSL https://gh.io/copilot-install | sudo bash
+      # ── 2.75. Install opencode ──────────────────────────────────
+      #    npm package: opencode-ai (provides the `opencode` binary)
+      - name: Install opencode
+        run: npm install -g opencode-ai
 
       # ── 3. Build prompt ──────────────────────────────────────────
       #    Strips YAML frontmatter from the agent instructions file
@@ -69,7 +69,7 @@ jobs:
           # System preamble — gives the agent runtime context
           cat > /tmp/research-monitor/prompt.txt << 'PREAMBLE'
           <system>
-          You are running as a standalone Copilot CLI agent inside a GitHub Actions workflow.
+          You are running as a standalone opencode agent inside a GitHub Actions workflow.
 
           ## Available tools
           - **bash**: You can run any shell command (curl, grep, sed, awk, jq, etc.)
@@ -77,20 +77,19 @@ jobs:
 
           ## Publishing output
           You do NOT have access to the GitHub API or `gh` CLI.
-          Instead, write your output to a JSON file at `/tmp/research-monitor/output.json`.
+          Instead, write your output using the file structure below.
 
-          The JSON file must have this structure:
-          ```json
-          {
-            "title": "Your concise title (without [ai] prefix — it will be added automatically)",
-            "body": "Your full report in Markdown format"
-          }
-          ```
+          Write these files:
+
+          1. `/tmp/research-monitor/title.txt` — your concise title (plain text, single line, no markdown)
+          2. `/tmp/research-monitor/body.md` — your full Markdown report (do NOT repeat the title as a heading)
+
+          If there is nothing interesting to report, instead write:
+          `/tmp/research-monitor/skip.json` with content `{"skip": true, "reason": "No relevant content found"}`
 
           Rules:
-          - Write EXACTLY ONE JSON object to `/tmp/research-monitor/output.json`.
-          - The `body` field should contain the full Markdown report. Do NOT repeat the title as a heading.
-          - If there is nothing interesting to report, write: `{"skip": true, "reason": "No relevant content found"}`
+          - Always publish output. If no entries survive filtering, write a report explaining what was scanned and why nothing qualified.
+          - Do NOT write `output.json`. Write the separate files as described above.
           - Do NOT attempt to create discussions, issues, or PRs yourself.
 
           ## Workspace
@@ -112,45 +111,45 @@ jobs:
       #    /tmp/research-monitor/feeds/, filters content, and writes output.json.
       #    It has NO network access to RSS feeds (pre-downloaded).
       #
-      - name: Run Copilot CLI agent
+      - name: Run opencode agent
         timeout-minutes: 20
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
-          copilot \
-            --add-dir "$GITHUB_WORKSPACE" \
-            --add-dir /tmp/research-monitor \
-            --allow-all-tools \
-            --allow-all-paths \
-            --model "${{ inputs.model || 'claude-sonnet-4.6' }}" \
-            --prompt "$(cat /tmp/research-monitor/prompt.txt)" \
+          npx opencode run \
+            --model "${{ inputs.model || 'mistral-large-latest' }}" \
+            --auto \
+            --dir "$GITHUB_WORKSPACE" \
+            "$(cat /tmp/research-monitor/prompt.txt)" \
             2>&1 | tee /tmp/research-monitor/agent-output.log
 
       # ── 5. Write output to job summary ──────────────────────────
       - name: Write output to job summary
         if: success()
         run: |
-          OUTPUT_FILE="/tmp/research-monitor/output.json"
-          if [ ! -f "$OUTPUT_FILE" ]; then
-            echo "⚠️ No output.json produced" >> "$GITHUB_STEP_SUMMARY"
+          SKIP_FILE="/tmp/research-monitor/skip.json"
+          TITLE_FILE="/tmp/research-monitor/title.txt"
+          BODY_FILE="/tmp/research-monitor/body.md"
+
+          if [ -f "$SKIP_FILE" ]; then
+            echo "⏭️ Skipped: $(jq -r '.reason // "No reason"' "$SKIP_FILE")" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if jq -e '.skip // false' "$OUTPUT_FILE" > /dev/null 2>&1; then
-            echo "⏭️ Skipped: $(jq -r '.reason // "No reason"' "$OUTPUT_FILE")" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ ! -f "$TITLE_FILE" ] || [ ! -f "$BODY_FILE" ]; then
+            echo "⚠️ Agent did not produce output files" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          TITLE=$(jq -r '.title // empty' "$OUTPUT_FILE")
-          BODY=$(jq -r '.body // empty' "$OUTPUT_FILE")
+
+          TITLE=$(cat "$TITLE_FILE")
           {
             echo "## 📢 [ai] $TITLE"
             echo ""
-            echo "$BODY"
           } >> "$GITHUB_STEP_SUMMARY"
+          cat "$BODY_FILE" >> "$GITHUB_STEP_SUMMARY"
 
       # ── 6. Publish output as GitHub Discussion ───────────────────
-      #    Reads the agent's JSON output and creates a discussion.
+      #    Reads the agent's title/body files and creates a discussion.
       #    Requires DISCUSSIONS_WRITE_TOKEN secret. If not set, skips.
       #
       - name: Create discussion from agent output
@@ -163,29 +162,22 @@ jobs:
             exit 0
           fi
 
-          OUTPUT_FILE="/tmp/research-monitor/output.json"
-
-          if [ ! -f "$OUTPUT_FILE" ]; then
-            echo "⚠️ No output.json found — agent produced no output"
-            exit 0
-          fi
+          SKIP_FILE="/tmp/research-monitor/skip.json"
+          TITLE_FILE="/tmp/research-monitor/title.txt"
+          BODY_FILE="/tmp/research-monitor/body.md"
 
           # Check if agent decided to skip
-          if jq -e '.skip // false' "$OUTPUT_FILE" > /dev/null 2>&1; then
-            REASON=$(jq -r '.reason // "No reason given"' "$OUTPUT_FILE")
-            echo "⏭️ Agent skipped: $REASON"
+          if [ -f "$SKIP_FILE" ]; then
+            echo "⏭️ Agent skipped: $(jq -r '.reason // "No reason given"' "$SKIP_FILE")"
             exit 0
           fi
 
-          # Validate required fields
-          TITLE=$(jq -r '.title // empty' "$OUTPUT_FILE")
-          BODY=$(jq -r '.body // empty' "$OUTPUT_FILE")
-
-          if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
-            echo "❌ output.json missing title or body"
-            jq . "$OUTPUT_FILE"
-            exit 1
+          if [ ! -f "$TITLE_FILE" ] || [ ! -f "$BODY_FILE" ]; then
+            echo "⚠️ Agent produced no output"
+            exit 0
           fi
+
+          TITLE=$(cat "$TITLE_FILE")
 
           echo "📢 Creating discussion: [ai] $TITLE"
           gh api graphql \
@@ -201,7 +193,7 @@ jobs:
             -f repoId="$(gh api repos/$GITHUB_REPOSITORY --jq .node_id)" \
             -f catId="$(gh api graphql -f query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ discussionCategory(slug:"general"){ id } } }' -f owner="${GITHUB_REPOSITORY%%/*}" -f repo="${GITHUB_REPOSITORY##*/}" --jq '.data.repository.discussionCategory.id')" \
             -f title="[ai] $TITLE" \
-            -f body="$BODY"
+            -f body="$(cat "$BODY_FILE")"
 
           echo "✅ Discussion created"
 
